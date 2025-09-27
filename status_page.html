@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>My Complaint Status</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+body { 
+  font-family: 'Poppins', sans-serif; 
+  background:#f0f2f5; 
+  margin:0; 
+  padding:20px; 
+}
+h1 { 
+  text-align:center; 
+  color:#2c3e50; 
+  margin-bottom:30px; 
+}
+#complaintsList { 
+  max-width:900px; 
+  margin:20px auto; 
+  display:grid; 
+  grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); 
+  gap:20px;
+  padding:0;
+  list-style:none;
+}
+.card {
+  padding:20px;
+  border-radius:15px;
+  box-shadow:0 6px 15px rgba(0,0,0,0.1);
+  transition:0.3s;
+  color:#2c3e50;
+  position: relative;
+  background:#fff;
+  border-top:8px solid transparent;  /* default transparent border */
+}
+.card:hover { 
+  transform:translateY(-5px); 
+  box-shadow:0 10px 20px rgba(0,0,0,0.15); 
+}
+.card strong { color:#3498db; }
+img, video { 
+  max-width:100%; 
+  border-radius:10px; 
+  margin-top:10px; 
+  box-shadow:0 4px 8px rgba(0,0,0,0.2);
+  border: 2px solid #fff;
+}
+.status { 
+  padding:5px 12px; 
+  border-radius:8px; 
+  font-weight:bold; 
+  display:inline-block; 
+  margin:5px 0;
+  color:white;
+}
+
+/* Only top border colors for status */
+.card.Solved { border-top-color:#28a745; }        /* Green */
+.card.Pending { border-top-color:#fd7e14; }       /* Orange */
+.card["In Progress"], .card.InProgress { border-top-color:#ffc107; } /* Yellow */
+
+/* Labels for admin info */
+.admin-info { 
+  background:rgba(0,0,0,0.05); 
+  padding:8px 12px; 
+  border-radius:10px; 
+  margin-top:10px; 
+  font-size:0.9em;
+}
+</style>
+</head>
+<body>
+
+<h1>📋 My Complaint Status</h1>
+<ul id="complaintsList">Loading complaints...</ul>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+<script>
+const SUPABASE_URL = "https://mekvgtrmqenvecfhsvhm.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1la3ZndHJtcWVudmVjZmhzdmhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc4NDQzMDAsImV4cCI6MjA3MzQyMDMwMH0.26lMBY44Oux4LrFI153wdMtEes9eUFZwE1GDOXdVZQM";
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const complaintsList = document.getElementById("complaintsList");
+
+async function loadComplaints(){
+  complaintsList.innerHTML = "Loading complaints...";
+
+  const phone = localStorage.getItem("userPhone");
+  if(!phone){
+    complaintsList.textContent = "⚠️ No phone number found. Please submit a complaint first.";
+    return;
+  }
+
+  const { data, error } = await supabase
+    .from("complaints")
+    .select("*")
+    .eq("phone", phone)
+    .order("created_at", { ascending: false });
+
+  complaintsList.innerHTML = "";
+
+  if(error){
+    complaintsList.textContent = "❌ Error: " + error.message;
+    console.error(error);
+    return;
+  }
+
+  if(!data || data.length === 0){
+    complaintsList.textContent = "No complaints found for this number.";
+    return;
+  }
+
+  data.forEach(c => {
+    const statusClass = c.status === "Solved" ? "Solved" 
+                     : c.status === "In Progress" ? "InProgress" 
+                     : "Pending";
+
+    const li = document.createElement("li");
+    li.className = `card ${statusClass}`;
+    li.innerHTML = `
+      <p><strong>Phone:</strong> ${c.phone}</p>
+      <p><strong>Department:</strong> ${c.department}</p>
+      <p><strong>Details:</strong> ${c.details}</p>
+      <p class="status">${c.status || "Pending"}</p>
+
+      ${c.photo ? `<p><strong>Your Complaint Photo:</strong><br><img src="${c.photo}" alt="Complaint photo"></p>` : ""}
+      ${c.video ? `<p><strong>Your Complaint Video:</strong><br><video src="${c.video}" controls></video></p>` : ""}
+
+      ${c.remarks ? `<div class="admin-info"><strong>Admin Remarks:</strong> ${c.remarks}</div>` : ""}
+      ${c.resolved_by ? `<div class="admin-info"><strong>Solved By:</strong> ${c.resolved_by}</div>` : ""}
+      ${c.resolved_at ? `<div class="admin-info"><strong>Resolved At:</strong> ${new Date(c.resolved_at).toLocaleString()}</div>` : ""}
+
+      ${c.resolved_photo ? `<p><strong>After Resolution Photo:</strong><br><img src="${c.resolved_photo}" alt="Resolved photo"></p>` : ""}
+      ${c.resolved_video ? `<p><strong>After Resolution Video:</strong><br><video src="${c.resolved_video}" controls></video></p>` : ""}
+    `;
+    complaintsList.appendChild(li);
+  });
+}
+
+loadComplaints();
+</script>
+</body>
+</html>
